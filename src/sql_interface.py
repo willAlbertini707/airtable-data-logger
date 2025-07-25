@@ -6,6 +6,7 @@ from database_interface import DatabaseInterface
 import sqlite3
 import pandas as pd
 import os
+from typing import Literal, List, Dict, Any
 
 class SqliteInterface(DatabaseInterface):
 
@@ -31,7 +32,7 @@ class SqliteInterface(DatabaseInterface):
         self._db_path = db_path
         self._connection = sqlite3.connect(db_path)
 
-    def write_table(self, name: str, data: pd.DataFrame, overwrite: bool = False) -> None:
+    def write_table(self, name: str, data: pd.DataFrame, if_exists: Literal['fail', 'replace', 'append'] = 'fail') -> None:
         """
         Write a DataFrame to a table in the SQLite database.
 
@@ -44,10 +45,7 @@ class SqliteInterface(DatabaseInterface):
             ValueError: If the table with the specified name already exists and overwrite is False.
         """
         # write a DataFrame to a table in the SQLite database
-        if overwrite:
-            data.to_sql(name, self._connection, if_exists='replace', index=False)
-        else:
-            data.to_sql(name, self._connection, if_exists='fail', index=False)
+        data.to_sql(name, self._connection, if_exists=if_exists, index=False)
 
     def read_table(self, name: str) -> pd.DataFrame:
         """
@@ -69,11 +67,47 @@ class SqliteInterface(DatabaseInterface):
         # read a table from the SQLite database
         return pd.read_sql_query(f"SELECT * FROM {name}", self._connection)
     
-    def add_row(self, name: str, data: dict) -> None:
-        pass
+    def add_row(self, name: str, data: Dict[str, Any]) -> None:
+        """
+        Adds a row to a table in an SQLite database.
+
+        Args:
+            name (str): Name of table to add row to
+            data (dict): Data to add to table, where keys are column names and values are the data to insert.
+        """
+        # check if the table exists
+        if not self._check_table_exists(name):
+            raise ValueError(f"Table '{name}' does not exist")
+        
+        # build the insert query
+        query = f'INSERT INTO {name} (' + ','.join(data.keys()) + ')'
+        query += ' VALUES (' + ','.join(data.values()) + ')'
+        
+        # execute the query
+        cursor = self._connection.cursor()
+        cursor.execute(query)
+        self._connection.commit()
 
     def add_column(self, name: str, column_name: str, column_type: str) -> None:
-        pass
+        """
+        This method adds a column to a table in an SQLite database.
+
+        Args:
+            name (str): The name of the table.
+            column_name (str): The name of the column to add.
+            column_type (str): The data type of the column to add.
+        """
+        # check if the table exists
+        if not self._check_table_exists(name):
+            raise ValueError(f"Table '{name}' does not exist")
+
+        # build the alter table query
+        query = f"ALTER TABLE {name} ADD COLUMN {column_name} {column_type};"
+
+        # execute the query
+        cursor = self._connection.cursor()
+        cursor.execute(query)
+        self._connection.commit()
     
     def _check_table_exists(self, name: str) -> bool:
         """
