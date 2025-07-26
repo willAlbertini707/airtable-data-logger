@@ -1,8 +1,9 @@
 import os 
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from pyairtable import Api
 from pyairtable.api.base import Base
+from pyairtable.api.table import Table
 from typing import List, Dict
 
 class AirtableBaseInterface:
@@ -19,7 +20,7 @@ class AirtableBaseInterface:
         self._base: Base = self._get_base_from_metadata(base_name)
 
         # get all tables from the base 
-        self._table_map = self._build_map_from_tables(self._base.tables())
+        self._table_map: Dict[str, Table] = self._build_map_from_tables(self._base.tables())
 
     def _get_base_from_metadata(self, base_name: str) -> Base:
         """
@@ -60,6 +61,7 @@ class AirtableBaseInterface:
     def read_table(self, name: str) -> pd.DataFrame:
         """
         Retrieve a table from the Airtable base as a DataFrame.
+        The table contains all records with their fields and unique IDs.
 
         Args:
             name (str): The name of the table.
@@ -67,49 +69,32 @@ class AirtableBaseInterface:
         Returns:
             pd.DataFrame: The DataFrame containing the table data.
         """
+        # create dictionary to hold table records
+        record_list = []
+
         # check if the table exists
         if name not in self._table_map:
             raise ValueError(f"Table '{name}' does not exist in the base.")
 
         # retrieve the table data
         table = self._table_map[name]
-        print(f"Reading table: {name}")
         records = table.all()
 
-        for entry in records:
-            
-            for field, value in entry['fields'].items():
-                if field == 'Last Modified':
-                    print(f"Field: {field}, Value: {value}")
-                    value = self._parse_datetime(value)
-                    print(value)
-            print('\n\n')
+        for record in records:
+
+            # take the unique ID from the record
+            id = record['id']
+
+            # take the fields from the record
+            fields = record['fields']
+
+            # add unique ID to the fields
+            fields['id'] = id
+
+            # add the record to the list
+            record_list.append(fields)
 
         # convert the records to a DataFrame
-        # df = pd.DataFrame.from_records()
-        # return df
+        df = pd.DataFrame(record_list)
 
-    @staticmethod
-    def _parse_datetime(date_str: str) -> datetime:
-        """
-        Parses a date string into a datetime object.
-
-        Args:
-            date_str (str): The date string to parse.
-
-        Returns:
-            datetime: The parsed datetime object.
-        """
-        return datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S.%fZ")
-    
-    def _write_datetime(self, date: datetime) -> str:
-        """
-        Converts a datetime object to a string in the format used by Airtable.
-
-        Args:
-            date (datetime): The datetime object to convert.
-
-        Returns:
-            str: The formatted date string.
-        """
-        return date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        return df
