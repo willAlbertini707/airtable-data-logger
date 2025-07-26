@@ -32,12 +32,12 @@ class SqliteInterface(DatabaseInterface):
         self._db_path = db_path
         self._connection = sqlite3.connect(db_path)
 
-    def write_table(self, name: str, data: pd.DataFrame, if_exists: Literal['fail', 'replace', 'append'] = 'fail') -> None:
+    def write_table(self, table_name: str, data: pd.DataFrame, if_exists: Literal['fail', 'replace', 'append'] = 'fail') -> None:
         """
         Write a DataFrame to a table in the SQLite database.
 
         Args:
-            name (str): The name of the table.
+            table_name (str): The name of the table.
             data (pd.DataFrame): The DataFrame to write to the table.
             overwrite (bool): If True, overwrites the existing table.
 
@@ -45,14 +45,14 @@ class SqliteInterface(DatabaseInterface):
             ValueError: If the table with the specified name already exists and overwrite is False.
         """
         # write a DataFrame to a table in the SQLite database
-        data.to_sql(name, self._connection, if_exists=if_exists, index=False)
+        data.to_sql(table_name, self._connection, if_exists=if_exists, index=False)
 
-    def read_table(self, name: str) -> pd.DataFrame:
+    def read_table(self, table_name: str) -> pd.DataFrame:
         """
         Retrieve a table from the SQLite database as a DataFrame.
 
         Args:
-            name (str): The name of the table.
+            table_name (str): The name of the table.
 
         Returns:
             pd.DataFrame: The DataFrame containing the table data.
@@ -61,26 +61,26 @@ class SqliteInterface(DatabaseInterface):
             ValueError: If the table with the specified name does not exist.
         """
         # check if the table exists
-        if not self._check_table_exists(name):
-            raise ValueError(f"Table '{name}' does not exist in the database.")
+        if not self._check_table_exists(table_name):
+            raise ValueError(f"Table '{table_name}' does not exist in the database.")
 
         # read a table from the SQLite database
-        return pd.read_sql_query(f"SELECT * FROM {name}", self._connection)
-    
-    def add_row(self, name: str, data: Dict[str, Any]) -> None:
+        return pd.read_sql_query(f"SELECT * FROM {table_name}", self._connection)
+
+    def add_row(self, table_name: str, data: Dict[str, Any]) -> None:
         """
         Adds a row to a table in an SQLite database.
 
         Args:
-            name (str): Name of table to add row to
+            table_name (str): Name of table to add row to
             data (dict): Data to add to table, where keys are column names and values are the data to insert.
         """
         # check if the table exists
-        if not self._check_table_exists(name):
-            raise ValueError(f"Table '{name}' does not exist")
+        if not self._check_table_exists(table_name):
+            raise ValueError(f"Table '{table_name}' does not exist")
         
         # build the insert query
-        query = f'INSERT INTO {name} (' + ','.join(data.keys()) + ')'
+        query = f'INSERT INTO {table_name} (' + ','.join(data.keys()) + ')'
         query += ' VALUES (' + ','.join(data.values()) + ')'
         
         # execute the query
@@ -88,39 +88,39 @@ class SqliteInterface(DatabaseInterface):
         cursor.execute(query)
         self._connection.commit()
 
-    def add_column(self, name: str, column_name: str, column_type: str) -> None:
+    def add_column(self, table_name: str, column_name: str, column_type: str) -> None:
         """
         This method adds a column to a table in an SQLite database.
 
         Args:
-            name (str): The name of the table.
+            table_name (str): The name of the table.
             column_name (str): The name of the column to add.
             column_type (str): The data type of the column to add.
         """
         # check if the table exists
-        if not self._check_table_exists(name):
-            raise ValueError(f"Table '{name}' does not exist")
+        if not self._check_table_exists(table_name):
+            raise ValueError(f"Table '{table_name}' does not exist")
 
         # build the alter table query
-        query = f"ALTER TABLE {name} ADD COLUMN {column_name} {column_type};"
+        query = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type};"
 
         # execute the query
         cursor = self._connection.cursor()
         cursor.execute(query)
         self._connection.commit()
-    
-    def _check_table_exists(self, name: str) -> bool:
+
+    def _check_table_exists(self, table_name: str) -> bool:
         """
         Check if a table exists in the SQLite database.
 
         Args:
-            name (str): The name of the table.
+            table_name (str): The name of the table.
 
         Returns:
             bool: True if the table exists, False otherwise.
         """
         # build a query to check if the table exists
-        query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{name}';"
+        query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';"
 
         # execute the query and return True if the table exists, False otherwise
         cursor = self._connection.cursor()
@@ -128,3 +128,79 @@ class SqliteInterface(DatabaseInterface):
 
         # fetch the result and check if the table exists
         return cursor.fetchone() is not None
+    
+    def _check_columns(self, table_name: str, columns: List[str]) -> List[bool]:
+        """
+        Check if the specified columns exist in the table.
+
+        Args:
+            table_name (str): The name of the table.
+            columns (List[str]): List of column names to check.
+
+        Returns:
+            bool: True if all columns exist, False otherwise.
+        """
+        # check if the table exists
+        if not self._check_table_exists(table_name):
+            raise ValueError(f"Table '{table_name}' does not exist")
+
+        # build a query to get the column names
+        query = f"PRAGMA table_info({table_name});"
+        
+        # execute the query and fetch the results
+        cursor = self._connection.cursor()
+        cursor.execute(query)
+        existing_columns = [row[1] for row in cursor.fetchall()]
+
+        # check if all specified columns exist
+        return [col in existing_columns for col in columns]
+    
+    def check_and_add_columns(self, table_name: str, columns: List[str], column_types: List[str]) -> None:
+        """
+        Check if the specified columns exist in the table and add them if they do not.
+
+        Args:
+            table_name (str): The name of the table.
+            columns (List[str]): The names of the columns to check/add.
+            column_types (List[str]): The data types of the columns to add.
+        """
+        # check if the table exists
+        if not self._check_table_exists(table_name):
+            raise ValueError(f"Table '{table_name}' does not exist")
+
+        # check if the columns exist
+        existing_columns = self._check_columns(table_name, columns)
+
+        # add any missing columns
+        for col, col_type, exists in zip(columns, column_types, existing_columns):
+            if not exists:
+                self.add_column(table_name, col, col_type)
+    
+    def upsert(self, table_name: str, data: pd.DataFrame) -> None:
+        """
+        Upserts a DataFrame into a table in the SQLite database.
+
+        Args:
+            table_name (str): The name of the table.
+            data (pd.DataFrame): The DataFrame to upsert into the table.
+        """
+        # check if the table exists
+        if not self._check_table_exists(table_name):
+            raise ValueError(f"Table '{table_name}' does not exist")
+
+        # create data batch for execute many
+        data_batch = [tuple(row) for row in data.to_numpy()]
+
+        # build the upsert query
+        columns = ', '.join(data.columns)
+        query = f"""
+        INSERT INTO {table_name} ({columns})
+        VALUES (?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+        {', '.join([f"{col}=excluded.{col}" for col in data.columns if col != 'id'])}
+        """
+
+        # execute the query
+        cursor = self._connection.cursor()
+        cursor.executemany(query, data_batch)
+        self._connection.commit()
