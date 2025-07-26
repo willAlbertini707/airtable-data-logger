@@ -179,6 +179,7 @@ class SqliteInterface(DatabaseInterface):
     def upsert(self, table_name: str, data: pd.DataFrame) -> None:
         """
         Upserts a DataFrame into a table in the SQLite database.
+        Note: The table must have a PRIMARY KEY or UNIQUE constraint on 'id' column for upsert to work.
 
         Args:
             table_name (str): The name of the table.
@@ -191,14 +192,24 @@ class SqliteInterface(DatabaseInterface):
         # create data batch for execute many
         data_batch = [tuple(row) for row in data.to_numpy()]
 
-        # build the upsert query
+        # build the upsert query with dynamic placeholders
         columns = ', '.join(data.columns)
-        query = f"""
-        INSERT INTO {table_name} ({columns})
-        VALUES (?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-        {', '.join([f"{col}=excluded.{col}" for col in data.columns if col != 'id'])}
-        """
+        placeholders = ', '.join(['?' for _ in data.columns])
+        update_columns = [f"{col}=excluded.{col}" for col in data.columns if col != 'id']
+        
+        if not update_columns:
+            # If only id column, just insert or ignore
+            query = f"""
+            INSERT OR IGNORE INTO {table_name} ({columns})
+            VALUES ({placeholders})
+            """
+        else:
+            query = f"""
+            INSERT INTO {table_name} ({columns})
+            VALUES ({placeholders})
+            ON CONFLICT(id) DO UPDATE SET
+            {', '.join(update_columns)}
+            """
 
         # execute the query
         cursor = self._connection.cursor()
