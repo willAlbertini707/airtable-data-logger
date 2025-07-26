@@ -176,7 +176,7 @@ class SqliteInterface(DatabaseInterface):
             if not exists:
                 self.add_column(table_name, col, col_type)
     
-    def upsert(self, table_name: str, data: pd.DataFrame) -> None:
+    def upsert_batch(self, table_name: str, data: pd.DataFrame) -> None:
         """
         Upserts a DataFrame into a table in the SQLite database.
         Note: The table must have a PRIMARY KEY or UNIQUE constraint on 'id' column for upsert to work.
