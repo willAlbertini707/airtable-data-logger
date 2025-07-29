@@ -342,7 +342,7 @@ class TestSqliteInterface(unittest.TestCase):
             'age': [31, 28]
         })
         
-        self.interface.upsert(table_name, upsert_data)
+        self.interface.upsert_batch(table_name, upsert_data)
         
         # Verify the results
         result = pd.read_sql_query(f"SELECT * FROM {table_name} ORDER BY id", self.interface._connection)
@@ -368,7 +368,7 @@ class TestSqliteInterface(unittest.TestCase):
         })
         
         with self.assertRaises(ValueError) as context:
-            self.interface.upsert('non_existing_table', upsert_data)
+            self.interface.upsert_batch('non_existing_table', upsert_data)
         
         self.assertIn("does not exist", str(context.exception))
 
@@ -402,7 +402,7 @@ class TestSqliteInterface(unittest.TestCase):
         })
         
         # This should now work with the dynamic placeholder implementation
-        self.interface.upsert(table_name, upsert_data)
+        self.interface.upsert_batch(table_name, upsert_data)
         
         # Verify the results
         result = pd.read_sql_query(f"SELECT * FROM {table_name} ORDER BY id", self.interface._connection)
@@ -437,7 +437,7 @@ class TestSqliteInterface(unittest.TestCase):
         })
         
         with self.assertRaises(sqlite3.OperationalError) as context:
-            self.interface.upsert(table_name, upsert_data)
+            self.interface.upsert_batch(table_name, upsert_data)
         
         self.assertIn("PRIMARY KEY or UNIQUE constraint", str(context.exception))
 
