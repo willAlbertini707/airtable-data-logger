@@ -98,3 +98,19 @@ class AirtableBaseInterface:
         df = pd.DataFrame(record_list)
 
         return df
+    
+    def read_all_tables(self) -> Dict[str, pd.DataFrame]:
+        """
+        Retrieve all tables from the Airtable base as a dictionary of DataFrames.
+
+        Returns:
+            Dict[str, pd.DataFrame]: A dictionary mapping table names to DataFrames.
+        """
+        # create a dictionary to hold all tables
+        all_tables = {}
+
+        # iterate through all tables and read them
+        for name in self._table_map.keys():
+            all_tables[name] = self.read_table(name)
+
+        return all_tables
