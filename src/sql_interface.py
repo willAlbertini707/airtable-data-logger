@@ -46,6 +46,9 @@ class SqliteInterface(DatabaseInterface):
         Raises:
             ValueError: If the table with the specified name already exists and overwrite is False.
         """
+        # ensure the table name is valid
+        table_name = self._return_valid_name(table_name)
+        
         # write a DataFrame to a table in the SQLite database
         data.to_sql(table_name, self._connection, if_exists=if_exists, index=False)
 
@@ -62,8 +65,11 @@ class SqliteInterface(DatabaseInterface):
         Raises:
             ValueError: If the table with the specified name does not exist.
         """
+        # ensure the table name is valid
+        table_name = self._return_valid_name(table_name)
+        
         # check if the table exists
-        if not self._check_table_exists(table_name):
+        if not self.check_table_exists(table_name):
             raise ValueError(f"Table '{table_name}' does not exist in the database.")
 
         # read a table from the SQLite database
@@ -77,8 +83,11 @@ class SqliteInterface(DatabaseInterface):
             table_name (str): Name of table to add row to
             data (dict): Data to add to table, where keys are column names and values are the data to insert.
         """
+        # ensure the table name is valid
+        table_name = self._return_valid_name(table_name)
+        
         # check if the table exists
-        if not self._check_table_exists(table_name):
+        if not self.check_table_exists(table_name):
             raise ValueError(f"Table '{table_name}' does not exist")
         
         # build the insert query
@@ -99,8 +108,11 @@ class SqliteInterface(DatabaseInterface):
             column_name (str): The name of the column to add.
             column_type (str): The data type of the column to add.
         """
+        # ensure the table name is valid
+        table_name = self._return_valid_name(table_name)
+        
         # check if the table exists
-        if not self._check_table_exists(table_name):
+        if not self.check_table_exists(table_name):
             raise ValueError(f"Table '{table_name}' does not exist")
 
         # build the alter table query
@@ -121,6 +133,9 @@ class SqliteInterface(DatabaseInterface):
         Returns:
             bool: True if the table exists, False otherwise.
         """
+        # ensure the table name is valid
+        table_name = self._return_valid_name(table_name)
+        
         # build a query to check if the table exists
         query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';"
 
@@ -142,8 +157,11 @@ class SqliteInterface(DatabaseInterface):
         Returns:
             List[bool]: A list of booleans indicating whether each column exists in the table.
         """
+        # ensure the table name is valid
+        table_name = self._return_valid_name(table_name)
+        
         # check if the table exists
-        if not self._check_table_exists(table_name):
+        if not self.check_table_exists(table_name):
             raise ValueError(f"Table '{table_name}' does not exist")
 
         # build a query to get the column names
@@ -166,8 +184,11 @@ class SqliteInterface(DatabaseInterface):
             columns (List[str]): The names of the columns to check/add.
             column_types (List[str]): The data types of the columns to add.
         """
+        # ensure the table name is valid
+        table_name = self._return_valid_name(table_name)
+
         # check if the table exists
-        if not self._check_table_exists(table_name):
+        if not self.check_table_exists(table_name):
             raise ValueError(f"Table '{table_name}' does not exist")
 
         # check if the columns exist
@@ -187,8 +208,11 @@ class SqliteInterface(DatabaseInterface):
             table_name (str): The name of the table.
             data (pd.DataFrame): The DataFrame to upsert into the table.
         """
+        # ensure the table name is valid
+        table_name = self._return_valid_name(table_name)
+
         # check if the table exists
-        if not self._check_table_exists(table_name):
+        if not self.check_table_exists(table_name):
             raise ValueError(f"Table '{table_name}' does not exist")
 
         # create data batch for execute many
@@ -217,3 +241,15 @@ class SqliteInterface(DatabaseInterface):
         cursor = self._connection.cursor()
         cursor.executemany(query, data_batch)
         self._connection.commit()
+
+    def _return_valid_name(self, table_name: str) -> str:
+        """
+        Returns a valid table name by replacing spaces with underscores.
+
+        Args:
+            table_name (str): The name of the table.
+
+        Returns:
+            str: A valid table name.
+        """
+        return table_name.replace(" ", "_")
