@@ -111,7 +111,7 @@ class SqliteInterface(DatabaseInterface):
         cursor.execute(query)
         self._connection.commit()
 
-    def _check_table_exists(self, table_name: str) -> bool:
+    def check_table_exists(self, table_name: str) -> bool:
         """
         Check if a table exists in the SQLite database.
 
