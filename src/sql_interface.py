@@ -1,12 +1,14 @@
 """
 This module provides an interface that allows interaction with sqlite databases.
 """
-
-from database_interface import DatabaseInterface
+# external imports
 import sqlite3
 import pandas as pd
 import os
 from typing import Literal, List, Dict, Any
+
+# internal imports
+from .database_interface import DatabaseInterface
 
 class SqliteInterface(DatabaseInterface):
 
