@@ -12,7 +12,7 @@ def read_json(file_path: str) -> dict:
         dict: Contents of the JSON file as a dictionary
     """
     # error check the input file path
-    if not os.path.isfile(file_path) and not file_path.endswith('.json'):
+    if not os.path.isfile(file_path) or not file_path.endswith('.json'):
         raise FileNotFoundError(f"The file {file_path} does not exist or is not a JSON file.")
 
     # open the file and load the JSON data
