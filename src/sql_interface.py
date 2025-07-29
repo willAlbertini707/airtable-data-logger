@@ -138,7 +138,7 @@ class SqliteInterface(DatabaseInterface):
             columns (List[str]): List of column names to check.
 
         Returns:
-            bool: True if all columns exist, False otherwise.
+            List[bool]: A list of booleans indicating whether each column exists in the table.
         """
         # check if the table exists
         if not self._check_table_exists(table_name):
